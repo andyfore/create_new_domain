@@ -1,0 +1,72 @@
+#!/bin/bash
+
+#
+# Created by Andrew Fore, afore@web.com
+# Date Created: 6-NOV-2017
+# Purpose: helper script to create new domain configurations
+#          on the web cluster
+#
+# Variables
+#
+# FQDN - the fully qualified domain name of the new site
+# JIRA - the queue name and ticket number for the request in JIRA
+# CHANGE - ID number in the change control system
+# 
+
+# Check for commandline arguments
+if [[ $# -eq 0 ]] ; then
+   echo "Usage: create_new_domain <FQDN> <JIRA> <CHANGE>"
+   echo "Example: create_new_domain davinci.web.com SYS-115292 56726"
+   exit 1
+fi
+
+## Define the variables to maintain a consistent state
+FQDN=$1
+JIRA=$2
+CHANGE=$3
+
+## setup the config file for the new domain
+echo "-->  Creating site definition file..."
+sleep 5
+/usr/bin/cp /data/skel/site_definition.conf /data/conf/$FQDN.conf
+
+echo "-->  Updating site definition values from command line arguments..."
+echo
+echo "     Change Control: $CHANGE"
+echo "     JIRA: $JIRA"
+echo "     Sitename: $FQDN"
+sleep 5
+/usr/bin/sed -i -e 's/CHANGE_CONTROL/'"$CHANGE"'/g' /data/conf/$FQDN.conf
+/usr/bin/sed -i -e 's/JIRA_QUEUE_NUMBER/'"$JIRA"'/g' /data/conf/$FQDN.conf
+/usr/bin/sed -i -e 's/site_fqdn_here/'"$FQDN"'/g' /data/conf/$FQDN.conf
+
+## setup the site directory for the new domain
+echo
+echo "-->  Creating site directory..."
+sleep 5
+/usr/bin/mkdir /data/sites/$FQDN
+
+echo "-->  Creating site index file..."
+sleep 5
+/usr/bin/cp /data/skel/index.html /data/sites/$FQDN
+
+echo "-->  Creating site robots.txt file..."
+sleep 5
+/usr/bin/cp /data/skel/robots.txt /data/sites/$FQDN
+
+echo "-->  Updating site directory ownership..."
+sleep 5
+/usr/bin/chown -R web:web /data/sites/$FQDN
+
+echo "-->  Updating site directory permissions..."
+sleep 5
+/usr/bin/chmod 755 /data/sites/$FQDN
+/usr/bin/chmod 644 /data/sites/$FQDN/*
+
+echo
+echo "To complete this please run the following commands on all cluster nodes:"
+echo "    Configuration Test:"
+echo "        apachectl configtest"
+echo "    Graceful restart of Apache HTTPd"
+echo "        systemctl restart httpd"
+echo
